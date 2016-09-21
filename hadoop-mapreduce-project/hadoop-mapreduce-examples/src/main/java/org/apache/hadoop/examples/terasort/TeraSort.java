@@ -80,7 +80,7 @@ public class TeraSort extends Configured implements Tool {
      */
     static class InnerTrieNode extends TrieNode {
       private TrieNode[] child = new TrieNode[256];
-      
+
       InnerTrieNode(int level) {
         super(level);
       }
@@ -172,7 +172,7 @@ public class TeraSort extends Configured implements Tool {
      * @param maxDepth the maximum depth we will build a trie for
      * @return the trie node that will divide the splits correctly
      */
-    private static TrieNode buildTrie(Text[] splits, int lower, int upper, 
+    private static TrieNode buildTrie(Text[] splits, int lower, int upper,
                                       Text prefix, int maxDepth) {
       int depth = prefix.getLength();
       if (depth >= maxDepth || lower == upper) {
@@ -193,7 +193,7 @@ public class TeraSort extends Configured implements Tool {
           currentBound += 1;
         }
         trial.getBytes()[depth] = (byte) ch;
-        result.child[ch] = buildTrie(splits, lower, currentBound, trial, 
+        result.child[ch] = buildTrie(splits, lower, currentBound, trial,
                                      maxDepth);
       }
       // pick up the rest
@@ -218,16 +218,16 @@ public class TeraSort extends Configured implements Tool {
     public Configuration getConf() {
       return conf;
     }
-    
+
     public TotalOrderPartitioner() {
     }
 
     public int getPartition(Text key, Text value, int numPartitions) {
       return trie.findPartition(key);
     }
-    
+
   }
-  
+
   /**
    * A total order partitioner that assigns keys based on their first 
    * PREFIX_LENGTH bytes, assuming a flat distribution.
@@ -239,14 +239,14 @@ public class TeraSort extends Configured implements Tool {
     private Configuration conf = null;
     public void setConf(Configuration conf) {
       this.conf = conf;
-      prefixesPerReduce = (int) Math.ceil((1 << (8 * PREFIX_LENGTH)) / 
+      prefixesPerReduce = (int) Math.ceil((1 << (8 * PREFIX_LENGTH)) /
         (float) conf.getInt(MRJobConfig.NUM_REDUCES, 1));
     }
-    
+
     public Configuration getConf() {
       return conf;
     }
-    
+
     @Override
     public int getPartition(Text key, Text value, int numPartitions) {
       byte[] bytes = key.getBytes();
@@ -282,7 +282,8 @@ public class TeraSort extends Configured implements Tool {
   }
 
   private static void usage() throws IOException {
-    System.err.println("Usage: terasort [-Dproperty=value] <in> <out>");
+    System.err.println("Usage: terasort [-Dproperty=value] <in> <out> " +
+            "<isErasureCodePolicyEnabledOutDir [true|false]>");
     System.err.println("TeraSort configurations are:");
     for (TeraSortConfigKeys teraSortConfigKeys : TeraSortConfigKeys.values()) {
       System.err.println(teraSortConfigKeys.toString());
@@ -290,9 +291,21 @@ public class TeraSort extends Configured implements Tool {
   }
 
   public int run(String[] args) throws Exception {
-    if (args.length != 2) {
+    if (args.length != 3 && args.length != 2) {
       usage();
       return 2;
+    }
+    if (args.length == 3) {
+      if (args[2].equalsIgnoreCase("true")) {
+        getConf().setBoolean(TeraSortConfigKeys.FINAL_SYNC_ATTRIBUTE.key(),
+                false);
+      } else if (args[2].equalsIgnoreCase("false")) {
+        getConf().setBoolean(TeraSortConfigKeys.FINAL_SYNC_ATTRIBUTE.key(),
+                true);
+      } else {
+        usage();
+        return 2;
+      }
     }
     LOG.info("starting");
     Job job = Job.getInstance(getConf());
@@ -311,7 +324,7 @@ public class TeraSort extends Configured implements Tool {
       job.setPartitionerClass(SimplePartitioner.class);
     } else {
       long start = System.currentTimeMillis();
-      Path partitionFile = new Path(outputDir, 
+      Path partitionFile = new Path(outputDir,
                                     TeraInputFormat.PARTITION_FILENAME);
       URI partitionUri = new URI(partitionFile.toString() +
                                  "#" + TeraInputFormat.PARTITION_FILENAME);
@@ -321,12 +334,12 @@ public class TeraSort extends Configured implements Tool {
         LOG.error(e.getMessage());
         return -1;
       }
-      job.addCacheFile(partitionUri);  
+      job.addCacheFile(partitionUri);
       long end = System.currentTimeMillis();
       System.out.println("Spent " + (end - start) + "ms computing partitions.");
       job.setPartitionerClass(TotalOrderPartitioner.class);
     }
-    
+
     job.getConfiguration().setInt("dfs.replication", getOutputReplication(job));
     int ret = job.waitForCompletion(true) ? 0 : 1;
     LOG.info("done");

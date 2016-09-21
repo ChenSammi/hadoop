@@ -245,7 +245,8 @@ public class TeraGen extends Configured implements Tool {
   }
 
   private static void usage() throws IOException {
-    System.err.println("teragen <num rows> <output dir>");
+    System.err.println("teragen <num rows> <output dir> " +
+        "<isErasureCodePolicyEnabledOutputDir [true|false]>");
   }
 
   /**
@@ -282,11 +283,20 @@ public class TeraGen extends Configured implements Tool {
    */
   public int run(String[] args) 
       throws IOException, InterruptedException, ClassNotFoundException {
-    Job job = Job.getInstance(getConf());
-    if (args.length != 2) {
+    if (args.length != 3 && args.length != 2) {
       usage();
       return 2;
     }
+    if (args.length == 3) {
+      if (args[2].equalsIgnoreCase("true")) {
+        getConf().setBoolean(TeraSortConfigKeys.FINAL_SYNC_ATTRIBUTE.key(),
+                false);
+      } else if (!args[2].equalsIgnoreCase("false")) {
+        usage();
+        return 2;
+      }
+    }
+    Job job = Job.getInstance(getConf());
     setNumberOfRows(job, parseHumanLong(args[0]));
     Path outputDir = new Path(args[1]);
     FileOutputFormat.setOutputPath(job, outputDir);
