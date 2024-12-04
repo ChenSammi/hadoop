@@ -14,7 +14,7 @@
 # limitations under the License.
 
 FROM apache/hadoop-runner
-ARG HADOOP_URL=https://github.com/ChenSammi/hadoop/archive/refs/tags/release-3.4.2-20241202-SNAPSHOT-RC0.tar.gz
+ARG HADOOP_URL='https://github.com/ChenSammi/hadoop/blob/branch-3.4.2/hadoop-dist/target/hadoop-3.4.2-20241202-SNAPSHOT.tar.gz?raw=true'
 WORKDIR /opt
 RUN sudo rm -rf /opt/hadoop && curl -LSs -o hadoop.tar.gz $HADOOP_URL && tar zxf hadoop.tar.gz && rm hadoop.tar.gz && mv hadoop* hadoop && rm -rf /opt/hadoop/share/doc
 WORKDIR /opt/hadoop
